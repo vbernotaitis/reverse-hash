@@ -1,0 +1,10 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/packages
+/.vs/ReverseHash/v15
+/ReverseHash/obj/Debug
+/ReverseHash/bin/Debug
+/UnitTests/bin/Debug
+/UnitTests/obj/Debug
