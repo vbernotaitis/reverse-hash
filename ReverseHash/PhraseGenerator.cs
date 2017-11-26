@@ -31,67 +31,54 @@ namespace ReverseHash
             var wordsIndexes = new int[_wordsInPhrase];
 
             wordsIndexes[0] = startIndex;
-            while (wordsIndexes[0] < endIndex)
+            while (wordsIndexes[0] <= endIndex)
             {
-                columnIndex = UpdateWordsAndColumnIndexes(wordsIndexes, columnIndex);
-                if (columnIndex != lastColumnIndex) continue;
-
-                foreach (var phrase in GetPhrasesByIndexes(wordsIndexes))
+                var areWordsInPhraseUnique = columnIndex == 0 || wordsIndexes[columnIndex - 1] != wordsIndexes[columnIndex];
+                if (!areWordsInPhraseUnique)
                 {
-                    yield return phrase;
+                    IncreaseWordsIndexes(wordsIndexes, columnIndex);
+                    continue;
+                }
+
+                var wordsInCurrentPhrase = columnIndex + 1;
+                var phrase = GetPhraseByIndexes(wordsIndexes.Take(wordsInCurrentPhrase));
+                if (!IsPhraseValid(phrase, wordsInCurrentPhrase))
+                {
+                    IncreaseWordsIndexes(wordsIndexes, columnIndex);
+                    continue;
+                }
+
+                if (columnIndex != lastColumnIndex)
+                {
+                    columnIndex++;
+                    continue;
                 }
 
                 IncreaseWordsIndexes(wordsIndexes, columnIndex);
-                columnIndex = 0;
+                yield return phrase;
             }
         }
 
-        private IEnumerable<string> GetPhrasesByIndexes(int[] wordsIndexes)
+        private bool IsPhraseValid(string phrase, int wordsInPhrase)
         {
-            for (var i = 0; i < WordsInListCount; i++)
-            {
-                wordsIndexes[wordsIndexes.Length-1] = i;
-                var fullphrase = GetPhraseByIndexes(wordsIndexes);
-                if (AreAllLettersValid(fullphrase, _phraseLenght, _phraseLenght))
-                {
-                    yield return fullphrase;
-                }
-            }
+            var minLenght = GetMinSubPhraseLenght(wordsInPhrase);
+            var maxLength = GetMaxSubPhraseLenght(wordsInPhrase);
+            return AreAllLettersValid(phrase, minLenght, maxLength);
         }
 
-        private string GetPhraseByIndexes(int[] wordsIndexes)
+        private string GetPhraseByIndexes(IEnumerable<int> wordsIndexes)
         {
             return string.Join(" ", wordsIndexes.Select(x => _availableWordsList[x]));
         }
 
-        private int UpdateWordsAndColumnIndexes(int[] indexes, int columnIndex)
-        {
-            var wordsInCurrentPhrase = columnIndex + 1;
-            var phrase = GetPhraseByIndexes(indexes.Take(wordsInCurrentPhrase).ToArray());
-            var minLenght = GetMinSubPhraseLenght(wordsInCurrentPhrase);
-            var maxLength = GetMaxSubPhraseLenght(wordsInCurrentPhrase);
-            var areWordsInPhraseUnique = columnIndex == 0 || indexes[columnIndex - 1] != indexes[columnIndex];
-
-            if (areWordsInPhraseUnique && AreAllLettersValid(phrase, minLenght, maxLength))
-            {
-                columnIndex++;
-            }
-            else
-            {
-                IncreaseWordsIndexes(indexes, columnIndex);
-            }
-
-            return columnIndex;
-        }
-
         private int GetMaxSubPhraseLenght(int wordsCount)
         {
-            return _phraseLenght - (_wordsInPhrase - wordsCount) * 2;
+            return _wordsInPhrase == wordsCount ? _phraseLenght : _phraseLenght - (_wordsInPhrase - wordsCount) * 2;
         }
 
         private int GetMinSubPhraseLenght(int wordsCount)
         {
-            return wordsCount * 2 - 1;
+            return _wordsInPhrase == wordsCount ? _phraseLenght : wordsCount * 2 - 1;
         }
 
         private bool AreAllLettersValid(string phrase, int minPhraseLenght, int maxPhraseLength)
@@ -139,7 +126,7 @@ namespace ReverseHash
             {
                 var wordsIndex = wordsIndexes[i];
                 var isNotFirstColumn = i - 1 >= 0;
-                if (isNotFirstColumn && wordsIndex >= maxWordsIndex)
+                if (isNotFirstColumn && wordsIndex > maxWordsIndex)
                 {
                     wordsIndexes[i] = 0;
                     wordsIndexes[i - 1]++;

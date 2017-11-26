@@ -13,10 +13,10 @@ namespace ReverseHash
             _md5Hash = MD5.Create();
         }
 
-        public bool IsHashesMatch(string phrase, string[] hashes)
+        public string GetMatchingHash(string phrase, string[] hashes)
         {
             var phraseHash = GetMd5Hash(phrase);
-            return hashes.Contains(phraseHash);
+            return hashes.SingleOrDefault(x => x.Equals(phraseHash));
         }
 
         private string GetMd5Hash(string phrase)
