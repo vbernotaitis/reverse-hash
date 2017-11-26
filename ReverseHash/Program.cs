@@ -23,9 +23,9 @@ namespace ReverseHash
         public static void Main()
         {
             const string anagram = "poultry outwits ants";
-            const string resultPath = @".\result";
-            var hashes = GetHashesList(@".\hashes");
-            var words = GetWordsList(@".\wordlist");
+            const string resultPath = @".\datafiles\result";
+            var hashes = GetHashesList(@".\datafiles\hashes");
+            var words = GetWordsList(@".\datafiles\wordlist");
             var stopWatch = new Stopwatch();
 
             stopWatch.Start();

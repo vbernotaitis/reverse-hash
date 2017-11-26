@@ -24,7 +24,7 @@ namespace ReverseHash
 
         public List<string> FindSecretPhrases() {
 
-            var phrasesGeneratorTasks = GetPhrasesGeneratorTasks(4);
+            var phrasesGeneratorTasks = GetPhrasesGeneratorTasks(5);
             var phrasesCheckerTasks = GetPhrasesCheckerTasks(1);
 
             Task.WaitAll(phrasesGeneratorTasks.ToArray());

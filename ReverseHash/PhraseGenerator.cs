@@ -33,7 +33,12 @@ namespace ReverseHash
             wordsIndexes[0] = startIndex;
             while (wordsIndexes[0] <= endIndex)
             {
-                var areWordsInPhraseUnique = columnIndex == 0 || wordsIndexes[columnIndex - 1] != wordsIndexes[columnIndex];
+
+                var areWordsInPhraseUnique = wordsIndexes
+                    .Take(columnIndex + 1)
+                    .GroupBy(x => x)
+                    .All(group => group.Count() == 1);
+
                 if (!areWordsInPhraseUnique)
                 {
                     IncreaseWordsIndexes(wordsIndexes, columnIndex);
