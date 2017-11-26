@@ -7,32 +7,32 @@ namespace ReverseHash
 {
     public class PhraseGenerator
     {
-        private string[] words;
-        private Dictionary<char, int> charaters;
-        private int phraseLenght;
-        private int wordsInPhrase;
+        private readonly string[] _availableWordsList;
+        private readonly Dictionary<char, int> _availableCharaters;
+        private readonly int _phraseLenght;
+        private readonly int _wordsInPhrase;
 
-        public int WordsInListCount => words.Length;
+        public int WordsInListCount => _availableWordsList.Length;
 
-        public PhraseGenerator(string anagram, string[] words)
+        public PhraseGenerator(string anagram, string[] wordsList)
         {
-            this.wordsInPhrase = anagram.Count(x => x == ' ') + 1;
-            this.phraseLenght = anagram.Length;
-            this.charaters = ExtractCharacters(anagram);
-            this.words = FilterValidWords(words, GetMaxSubPhraseLenght(1));
+            _wordsInPhrase = anagram.Count(x => x == ' ') + 1;
+            _phraseLenght = anagram.Length;
+            _availableCharaters = ExtractCharacters(anagram);
+            _availableWordsList = FilterInvalidWords(wordsList, GetMaxSubPhraseLenght(1));
 
-            Console.WriteLine(this.words.Length);
+            Console.WriteLine(_availableWordsList.Length);
         }
 
         public IEnumerable<string> GetUniquePhrases(int startIndex, int endIndex)
         {
             var columnIndex = 0;
-            var lastColumnIndex = wordsInPhrase - 1;
-            var indexes = new int[wordsInPhrase];
+            var lastColumnIndex = _wordsInPhrase - 1;
+            var indexes = new int[_wordsInPhrase];
             indexes[0] = startIndex;
             while (indexes[0] < endIndex)
             {
-                var phrase = GetPhrase(indexes.Take(columnIndex + 1).ToArray());
+                var phrase = GetPhraseByIndexes(indexes.Take(columnIndex + 1).ToArray());
                 var minLenght = GetMinSubPhraseLenght(columnIndex + 1);
                 var maxLength = GetMaxSubPhraseLenght(columnIndex + 1);
                 var areNotEqual = columnIndex == 0 || indexes[columnIndex - 1] != indexes[columnIndex];
@@ -45,26 +45,41 @@ namespace ReverseHash
                     IncreaseIndexes(indexes, columnIndex);
                 }
 
-                if (columnIndex == lastColumnIndex)
+                if (columnIndex != lastColumnIndex) continue;
+                for (var i = 0; i < WordsInListCount; i++)
                 {
-                    for (var i = 0; i < WordsInListCount; i++)
+                    indexes[lastColumnIndex] = i;
+                    var fullphrase = GetPhraseByIndexes(indexes);
+                    if (AreAllLettersValid(fullphrase, _phraseLenght, _phraseLenght))
                     {
-                        indexes[lastColumnIndex] = i;
-                        var fullphrase = GetPhrase(indexes);
-                        if (AreAllLettersValid(fullphrase, phraseLenght, phraseLenght))
-                        {
-                            yield return fullphrase;
-                        }
+                        yield return fullphrase;
                     }
-                    IncreaseIndexes(indexes, columnIndex);
-                    columnIndex = 0;
                 }
+                IncreaseIndexes(indexes, columnIndex);
+                columnIndex = 0;
             }
+        }
+
+        private int UpdateColumnIndexes(int[] indexes, int columnIndex)
+        {
+            var phrase = GetPhraseByIndexes(indexes.Take(columnIndex + 1).ToArray());
+            var minLenght = GetMinSubPhraseLenght(columnIndex + 1);
+            var maxLength = GetMaxSubPhraseLenght(columnIndex + 1);
+            var areNotEqual = columnIndex == 0 || indexes[columnIndex - 1] != indexes[columnIndex];
+            if (areNotEqual && AreAllLettersValid(phrase, minLenght, maxLength))
+            {
+                columnIndex++;
+            }
+            else
+            {
+                IncreaseIndexes(indexes, columnIndex);
+            }
+            return columnIndex;
         }
 
         private int GetMaxSubPhraseLenght(int wordsCount)
         {
-            return phraseLenght - (wordsInPhrase - wordsCount) * 2;
+            return _phraseLenght - (_wordsInPhrase - wordsCount) * 2;
         }
 
         private int GetMinSubPhraseLenght(int wordsCount)
@@ -72,13 +87,19 @@ namespace ReverseHash
             return wordsCount * 2 - 1;
         }
 
+        private bool AreAllLettersValid(string phrase, int minPhraseLenght, int maxPhraseLength)
+        {
+            var isPhraseLenghValid = phrase.Length >= minPhraseLenght && phrase.Length <= maxPhraseLength;
+            var hasCorrectLettersCount = !_availableCharaters.Any(x => phrase.Count(a => a == x.Key) > x.Value);
+            return isPhraseLenghValid && hasCorrectLettersCount;
+        }
+
         private Dictionary<char, int> ExtractCharacters(string anagram)
         {
             anagram = anagram.Replace(" ", "");
             var characters = new Dictionary<char, int>();
-            for (var i = 0; i < anagram.Length; i++)
+            foreach (var character in anagram)
             {
-                var character = anagram[i];
                 if (characters.ContainsKey(character))
                 {
                     characters[character] = ++characters[character];
@@ -91,21 +112,21 @@ namespace ReverseHash
             return characters;
         }
 
-        private string[] FilterValidWords(string[] words, int maxWordLenght)
+        private string[] FilterInvalidWords(string[] words, int maxWordLenght)
         {
-            var regPattern = $"^[{string.Join("", charaters.Keys)}]*$";
+            var regPattern = $"^[{string.Join("", _availableCharaters.Keys)}]*$";
             var filteredWords = words
                 .Where(x => x.Length <= maxWordLenght)
                 .Where(x => Regex.IsMatch(x, regPattern))
-                .Where(x => charaters.All(a => x.Count(b => b == a.Key) <= a.Value));
+                .Where(x => _availableCharaters.All(a => x.Count(b => b == a.Key) <= a.Value));
             var uniqueWords = new HashSet<string>(filteredWords);
 
             return uniqueWords.ToArray();
         }
 
-        private string GetPhrase(int[] indexes)
+        private string GetPhraseByIndexes(int[] indexes)
         {
-            return string.Join(" ", indexes.Select(x => words[x]));
+            return string.Join(" ", indexes.Select(x => _availableWordsList[x]));
         }
 
         private void IncreaseIndexes(int[] indexes, int index)
@@ -122,13 +143,6 @@ namespace ReverseHash
                     }
                 }
             }
-        }
-
-        private bool AreAllLettersValid(string phrase, int minPhraseLenght, int maxPhraseLength)
-        {
-            var isPhraseLenghValid = phrase.Length >= minPhraseLenght && phrase.Length <= maxPhraseLength;
-            var hasCorrectLettersCount = !charaters.Any(x => phrase.Count(a => a == x.Key) > x.Value);
-            return isPhraseLenghValid && hasCorrectLettersCount;
         }
     }
 }

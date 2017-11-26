@@ -1,35 +1,29 @@
-﻿using System.Text;
+﻿using System.Linq;
 using System.Security.Cryptography;
-using System.Linq;
+using System.Text;
 
 namespace ReverseHash
 {
     public class HashChecker
     {
-        private MD5 md5Hash;
+        private readonly MD5 _md5Hash;
 
         public HashChecker()
         {
-            md5Hash = MD5.Create();
+            _md5Hash = MD5.Create();
         }
 
         public bool IsHashesMatch(string phrase, string[] hashes)
         {
-            var phraseHash = GetMD5Hash(phrase);
+            var phraseHash = GetMd5Hash(phrase);
             return hashes.Contains(phraseHash);
         }
 
-        private string GetMD5Hash(string phrase)
+        private string GetMd5Hash(string phrase)
         {
-            byte[] data = md5Hash.ComputeHash(Encoding.UTF8.GetBytes(phrase));
-            var sBuilder = new StringBuilder();
-
-            for (int i = 0; i < data.Length; i++)
-            {
-                sBuilder.Append(data[i].ToString("x2"));
-            }
-
-            return sBuilder.ToString();
+            var data = _md5Hash.ComputeHash(Encoding.UTF8.GetBytes(phrase));
+            var hash = string.Join("", data.Select(x => x.ToString("x2")));
+            return hash;
         }
     }
 }
