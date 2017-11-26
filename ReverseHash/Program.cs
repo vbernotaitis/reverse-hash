@@ -1,11 +1,17 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace ReverseHash
 {
     class Program
     {
+        private static bool isNotFinished = true;
+
         static string[] GetHashesList(string path)
         {
             return System.IO.File.ReadAllLines(path);
@@ -16,35 +22,52 @@ namespace ReverseHash
             return System.IO.File.ReadAllLines(path);
         }
 
-        static void WriteResult(string path, string result)
+        static void WriteResult(string path, string[] result)
         {
-            System.IO.File.WriteAllText(path, result);
+            System.IO.File.WriteAllLines(path, result);
         }
 
         static void PutPhrasesToQueue(BlockingCollection<string> allPhrases, PhraseGenerator phraseGenerator, int startIndex, int endIndex)
         {
             foreach (var phrase in phraseGenerator.GetUniquePhrases(startIndex, endIndex))
             {
+                if (!isNotFinished) break;
                 allPhrases.Add(phrase);
             }
+            Console.WriteLine("THREAD IS FINISHED");
         }
 
-        static void CheckIfMatch(BlockingCollection<string> phrases, string[] hashes, ref bool isFound)
+        static void CheckIfMatch(BlockingCollection<string> phrases, string[] hashes, List<string> result)
         {
             var hashChecker = new HashChecker();
-            while (!isFound) {
+            while (result.Count < hashes.Length && isNotFinished || phrases.Any()) {
                 var phrase = string.Empty;
                 while (phrases.TryTake(out phrase))
                 {
                     Console.WriteLine(phrase);
                     if (hashChecker.IsHashesMatch(phrase, hashes))
                     {
-                        isFound = true;
-                        WriteResult(@"D:\result", phrase);
+                        result.Add(phrase);
                         Console.WriteLine($"FOUND IT: {phrase}");
                     }
                 }
             }
+            isNotFinished = isNotFinished || result.Count < hashes.Length;
+        }
+
+        private static List<Task> GetPutPrashesTasks(int tasksCount, BlockingCollection<string> allPhrases, PhraseGenerator phraseGenerator)
+        {
+            int counter = 0;
+            var step = phraseGenerator.WordsInListCount / tasksCount;
+            var tasks = new List<Task>();
+            for (var i = 0; i < tasksCount; i++)
+            {
+                var from = counter;
+                var to = from + step;
+                tasks.Add(Task.Run(() => PutPhrasesToQueue(allPhrases, phraseGenerator, from, to)));
+                counter += step;
+            }
+            return tasks;
         }
 
         static void Main(string[] args)
@@ -54,24 +77,24 @@ namespace ReverseHash
             var hashes = GetHashesList(@"D:\hash");
             var words = GetWordsList(@"D:\wordlist");
 
+            var stopWatch = new Stopwatch();
+            stopWatch.Start();
+
             var phraseGenerator = new PhraseGenerator(anagram, words);
             var allPhrases = new BlockingCollection<string>(1);
-            var isFound = false;
+            var result = new List<string>();
 
-            var start = 0;
-            int middle = phraseGenerator.WordsCount / 2;
-            var end = phraseGenerator.WordsCount;
-
-            var phrasesThread1 = new Thread(() => PutPhrasesToQueue(allPhrases, phraseGenerator, start, middle));
-            var phrasesThread2 = new Thread(() => PutPhrasesToQueue(allPhrases, phraseGenerator, middle, end));
-
-            var checkerThread1 = new Thread(() => CheckIfMatch(allPhrases, hashes, ref isFound));
-            var checkerThread2 = new Thread(() => CheckIfMatch(allPhrases, hashes, ref isFound));
-
-            phrasesThread1.Start();
-            phrasesThread2.Start();
+            var getPhrasesTasks = GetPutPrashesTasks(6, allPhrases, phraseGenerator);
+            var checkerThread1 = new Thread(() => CheckIfMatch(allPhrases, hashes, result));
             checkerThread1.Start();
-            //checkerThread2.Start();
+
+            Task.WaitAll(getPhrasesTasks.ToArray());
+            isNotFinished = false;
+
+            stopWatch.Stop();
+            result.Add(stopWatch.Elapsed.TotalMinutes.ToString());
+
+            WriteResult(resultPath, result.ToArray());
         }
     }
 }

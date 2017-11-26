@@ -10,18 +10,66 @@ namespace ReverseHash
         private string[] words;
         private Dictionary<char, int> charaters;
         private int phraseLenght;
-        private int wordsCount;
+        private int wordsInPhrase;
 
-        public int WordsCount => words.Length;
+        public int WordsInListCount => words.Length;
 
         public PhraseGenerator(string anagram, string[] words)
         {
-            this.wordsCount = anagram.Count(x => x == ' ') + 1;
+            this.wordsInPhrase = anagram.Count(x => x == ' ') + 1;
             this.phraseLenght = anagram.Length;
             this.charaters = ExtractCharacters(anagram);
-            this.words = FilterValidWords(words);
+            this.words = FilterValidWords(words, GetMaxSubPhraseLenght(1));
 
             Console.WriteLine(this.words.Length);
+        }
+
+        public IEnumerable<string> GetUniquePhrases(int startIndex, int endIndex)
+        {
+            var columnIndex = 0;
+            var lastColumnIndex = wordsInPhrase - 1;
+            var indexes = new int[wordsInPhrase];
+            indexes[0] = startIndex;
+            while (indexes[0] < endIndex)
+            {
+                var phrase = GetPhrase(indexes.Take(columnIndex + 1).ToArray());
+                var minLenght = GetMinSubPhraseLenght(columnIndex + 1);
+                var maxLength = GetMaxSubPhraseLenght(columnIndex + 1);
+                var areNotEqual = columnIndex == 0 || indexes[columnIndex - 1] != indexes[columnIndex];
+                if (areNotEqual && AreAllLettersValid(phrase, minLenght, maxLength))
+                {
+                    columnIndex++;
+                }
+                else
+                {
+                    IncreaseIndexes(indexes, columnIndex);
+                }
+
+                if (columnIndex == lastColumnIndex)
+                {
+                    for (var i = 0; i < WordsInListCount; i++)
+                    {
+                        indexes[lastColumnIndex] = i;
+                        var fullphrase = GetPhrase(indexes);
+                        if (AreAllLettersValid(fullphrase, phraseLenght, phraseLenght))
+                        {
+                            yield return fullphrase;
+                        }
+                    }
+                    IncreaseIndexes(indexes, columnIndex);
+                    columnIndex = 0;
+                }
+            }
+        }
+
+        private int GetMaxSubPhraseLenght(int wordsCount)
+        {
+            return phraseLenght - (wordsInPhrase - wordsCount) * 2;
+        }
+
+        private int GetMinSubPhraseLenght(int wordsCount)
+        {
+            return wordsCount * 2 - 1;
         }
 
         private Dictionary<char, int> ExtractCharacters(string anagram)
@@ -43,11 +91,11 @@ namespace ReverseHash
             return characters;
         }
 
-        private string[] FilterValidWords(string[] words)
+        private string[] FilterValidWords(string[] words, int maxWordLenght)
         {
             var regPattern = $"^[{string.Join("", charaters.Keys)}]*$";
             var filteredWords = words
-                .Where(x => x.Length < 17)
+                .Where(x => x.Length <= maxWordLenght)
                 .Where(x => Regex.IsMatch(x, regPattern))
                 .Where(x => charaters.All(a => x.Count(b => b == a.Key) <= a.Value));
             var uniqueWords = new HashSet<string>(filteredWords);
@@ -55,18 +103,22 @@ namespace ReverseHash
             return uniqueWords.ToArray();
         }
 
-        public IEnumerable<string> GetUniquePhrases(int startIndex, int endIndex)
+        private string GetPhrase(int[] indexes)
         {
-            for (var i = startIndex; i < endIndex; i++)
+            return string.Join(" ", indexes.Select(x => words[x]));
+        }
+
+        private void IncreaseIndexes(int[] indexes, int index)
+        {
+            indexes[index]++;
+            for (var i = indexes.Length-1; i >= 0; i--)
             {
-                for (var j = 0; j < words.Length; j++)
+                if (indexes[i] >= WordsInListCount-1)
                 {
-                    if (i == j || !AreAllLettersValid($"{words[i]} {words[j]}", 3, 17)) continue;
-                    for (var k = 0; k < words.Length; k++)
+                    indexes[i] = 0;
+                    if (i - 1 >= 0)
                     {
-                        var phrase = $"{words[i]} {words[j]} {words[k]}";
-                        if (i == k || j == k || !AreAllLettersValid(phrase, phraseLenght, phraseLenght)) continue;
-                        yield return phrase;
+                        indexes[i - 1]++;
                     }
                 }
             }
