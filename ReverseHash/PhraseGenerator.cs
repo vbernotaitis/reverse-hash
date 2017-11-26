@@ -28,52 +28,59 @@ namespace ReverseHash
         {
             var columnIndex = 0;
             var lastColumnIndex = _wordsInPhrase - 1;
-            var indexes = new int[_wordsInPhrase];
-            indexes[0] = startIndex;
-            while (indexes[0] < endIndex)
+            var wordsIndexes = new int[_wordsInPhrase];
+
+            wordsIndexes[0] = startIndex;
+            while (wordsIndexes[0] < endIndex)
             {
-                var phrase = GetPhraseByIndexes(indexes.Take(columnIndex + 1).ToArray());
-                var minLenght = GetMinSubPhraseLenght(columnIndex + 1);
-                var maxLength = GetMaxSubPhraseLenght(columnIndex + 1);
-                var areNotEqual = columnIndex == 0 || indexes[columnIndex - 1] != indexes[columnIndex];
-                if (areNotEqual && AreAllLettersValid(phrase, minLenght, maxLength))
+                columnIndex = UpdateWordsAndColumnIndexes(wordsIndexes, columnIndex);
+                if (columnIndex != lastColumnIndex) continue;
+
+                foreach (var phrase in GetPhrasesByIndexes(wordsIndexes))
                 {
-                    columnIndex++;
-                }
-                else
-                {
-                    IncreaseIndexes(indexes, columnIndex);
+                    yield return phrase;
                 }
 
-                if (columnIndex != lastColumnIndex) continue;
-                for (var i = 0; i < WordsInListCount; i++)
-                {
-                    indexes[lastColumnIndex] = i;
-                    var fullphrase = GetPhraseByIndexes(indexes);
-                    if (AreAllLettersValid(fullphrase, _phraseLenght, _phraseLenght))
-                    {
-                        yield return fullphrase;
-                    }
-                }
-                IncreaseIndexes(indexes, columnIndex);
+                IncreaseWordsIndexes(wordsIndexes, columnIndex);
                 columnIndex = 0;
             }
         }
 
-        private int UpdateColumnIndexes(int[] indexes, int columnIndex)
+        private IEnumerable<string> GetPhrasesByIndexes(int[] wordsIndexes)
         {
-            var phrase = GetPhraseByIndexes(indexes.Take(columnIndex + 1).ToArray());
-            var minLenght = GetMinSubPhraseLenght(columnIndex + 1);
-            var maxLength = GetMaxSubPhraseLenght(columnIndex + 1);
-            var areNotEqual = columnIndex == 0 || indexes[columnIndex - 1] != indexes[columnIndex];
-            if (areNotEqual && AreAllLettersValid(phrase, minLenght, maxLength))
+            for (var i = 0; i < WordsInListCount; i++)
+            {
+                wordsIndexes[wordsIndexes.Length-1] = i;
+                var fullphrase = GetPhraseByIndexes(wordsIndexes);
+                if (AreAllLettersValid(fullphrase, _phraseLenght, _phraseLenght))
+                {
+                    yield return fullphrase;
+                }
+            }
+        }
+
+        private string GetPhraseByIndexes(int[] wordsIndexes)
+        {
+            return string.Join(" ", wordsIndexes.Select(x => _availableWordsList[x]));
+        }
+
+        private int UpdateWordsAndColumnIndexes(int[] indexes, int columnIndex)
+        {
+            var wordsInCurrentPhrase = columnIndex + 1;
+            var phrase = GetPhraseByIndexes(indexes.Take(wordsInCurrentPhrase).ToArray());
+            var minLenght = GetMinSubPhraseLenght(wordsInCurrentPhrase);
+            var maxLength = GetMaxSubPhraseLenght(wordsInCurrentPhrase);
+            var areWordsInPhraseUnique = columnIndex == 0 || indexes[columnIndex - 1] != indexes[columnIndex];
+
+            if (areWordsInPhraseUnique && AreAllLettersValid(phrase, minLenght, maxLength))
             {
                 columnIndex++;
             }
             else
             {
-                IncreaseIndexes(indexes, columnIndex);
+                IncreaseWordsIndexes(indexes, columnIndex);
             }
+
             return columnIndex;
         }
 
@@ -124,23 +131,18 @@ namespace ReverseHash
             return uniqueWords.ToArray();
         }
 
-        private string GetPhraseByIndexes(int[] indexes)
+        private void IncreaseWordsIndexes(int[] wordsIndexes, int columnIndex)
         {
-            return string.Join(" ", indexes.Select(x => _availableWordsList[x]));
-        }
-
-        private void IncreaseIndexes(int[] indexes, int index)
-        {
-            indexes[index]++;
-            for (var i = indexes.Length-1; i >= 0; i--)
+            wordsIndexes[columnIndex]++;
+            var maxWordsIndex = WordsInListCount - 1;
+            for (var i = wordsIndexes.Length-1; i >= 0; i--)
             {
-                if (indexes[i] >= WordsInListCount-1)
+                var wordsIndex = wordsIndexes[i];
+                var isNotFirstColumn = i - 1 >= 0;
+                if (isNotFirstColumn && wordsIndex >= maxWordsIndex)
                 {
-                    indexes[i] = 0;
-                    if (i - 1 >= 0)
-                    {
-                        indexes[i - 1]++;
-                    }
+                    wordsIndexes[i] = 0;
+                    wordsIndexes[i - 1]++;
                 }
             }
         }
