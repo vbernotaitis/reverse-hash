@@ -43,6 +43,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="HashChecker.cs" />
+    <Compile Include="IndexesEnumerable.cs" />
     <Compile Include="PhraseGenerator.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

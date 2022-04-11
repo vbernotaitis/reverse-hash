@@ -12,7 +12,6 @@ namespace ReverseHash
         private readonly ConcurrentBag<string> _results;
         private readonly PhraseGenerator _phraseGenerator;
         private readonly string[] _hashes;
-        private bool _isFinished;
 
         public SecretPhrasesFinder(PhraseGenerator phraseGenerator, string[] hashes)
         {
@@ -24,11 +23,13 @@ namespace ReverseHash
 
         public List<string> FindSecretPhrases() {
 
-            var phrasesGeneratorTasks = GetPhrasesGeneratorTasks(5);
+            var phrasesGeneratorTasks = GetPhrasesGeneratorTasks(20);
             var phrasesCheckerTasks = GetPhrasesCheckerTasks(1);
 
             Task.WaitAll(phrasesGeneratorTasks.ToArray());
-            _isFinished = true;
+            if (!_phrasesToCheck.IsAddingCompleted)
+                _phrasesToCheck.CompleteAdding();
+
             Task.WaitAll(phrasesCheckerTasks.ToArray());
 
             return _results.ToList();
@@ -60,8 +61,15 @@ namespace ReverseHash
         {
             foreach (var phrase in _phraseGenerator.GetUniquePhrases(startIndex, endIndex))
             {
-                if (_isFinished) break;
-                _phrasesToCheck.Add(phrase);
+                try
+                {
+                    _phrasesToCheck.Add(phrase);
+                }
+                catch (InvalidOperationException)
+                {
+
+                    break;
+                }
             }
         }
 
@@ -78,19 +86,24 @@ namespace ReverseHash
         private void CheckIfPhraseMatchHashes()
         {
             var hashChecker = new HashChecker();
-            while (!_isFinished && _results.Count < _hashes.Length || _phrasesToCheck.Any())
+            ulong count = 0;
+            foreach (var phrase in _phrasesToCheck.GetConsumingEnumerable())
             {
-                while (_phrasesToCheck.TryTake(out var phrase))
+                count++;
+                Console.WriteLine(phrase);
+                var mathingHash = hashChecker.GetMatchingHash(phrase, _hashes);
+                if (mathingHash != default(string))
                 {
-                    Console.WriteLine(phrase);
-                    var mathingHash = hashChecker.GetMatchingHash(phrase, _hashes);
-                    if (mathingHash != default(string))
+                    _results.Add($"{phrase} {mathingHash}");
+                    if (_results.Count >= _hashes.Length)
                     {
-                        _results.Add($"{phrase} {mathingHash}");
+                        if (!_phrasesToCheck.IsAddingCompleted)
+                            _phrasesToCheck.CompleteAdding();
+                        break;
                     }
                 }
             }
-            _isFinished = _results.Count >= _hashes.Length || _isFinished;
+            Console.WriteLine(count);
         }
     }
 }

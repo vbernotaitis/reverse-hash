@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.Globalization;
 
 namespace ReverseHash
@@ -22,10 +23,12 @@ namespace ReverseHash
 
         public static void Main()
         {
-            const string anagram = "poultry outwits ants";
             const string resultPath = @".\datafiles\result";
+
+            const string anagram = "poultry outwits ants";
             var hashes = GetHashesList(@".\datafiles\hashes");
             var words = GetWordsList(@".\datafiles\wordlist");
+
             var stopWatch = new Stopwatch();
 
             stopWatch.Start();
@@ -38,6 +41,8 @@ namespace ReverseHash
 
             result.Add(stopWatch.Elapsed.TotalMinutes.ToString(CultureInfo.InvariantCulture));
 
+            Console.WriteLine("----------------------");
+            Console.WriteLine(string.Join(" ", result));
             WriteResult(resultPath, result.ToArray());
         }
     }
